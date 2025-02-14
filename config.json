@@ -1,4 +1,28 @@
 {
   "folders": ["/Users/pedroalmeida/Documents/Projects/StickerSmash"],
-  "output": "/Users/pedroalmeida/Documents/Projects/concatenate-repo/output2.txt"
+  "output": "/Users/pedroalmeida/Documents/Projects/concatenate-repo/output4.txt",
+  "ignoreExtensions": [
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".svg",
+    ".bmp",
+    ".mp3",
+    ".wav",
+    ".flac",
+    ".ogg",
+    ".mp4",
+    ".mov",
+    ".avi",
+    ".mkv",
+    ".pdf",
+    ".zip",
+    ".rar",
+    ".tar",
+    ".gz",
+    ".txt",
+    ".log"
+  ],
+  "ignoreFiles": ["package-lock.json", ".gitignore"]
 }
