@@ -28,7 +28,7 @@ const mediaExtensions = new Set([
   ".gz",
 ]);
 
-const processFolder = async (folderPath, ig, outputFile) => {
+const processFolder = async (folderPath, ig) => {
   if (!fs.existsSync(folderPath) || !fs.statSync(folderPath).isDirectory()) {
     console.warn(`⚠️ Skipping invalid folder: ${folderPath}`);
     return "";
@@ -79,29 +79,27 @@ const processFolder = async (folderPath, ig, outputFile) => {
 };
 
 const main = async () => {
-  const hardcodedOutputFile =
-    "/Users/pedroalmeida/Documents/Projects/concatenate-repo/output.txt";
-
   try {
-    if (!config || !config.folders || !Array.isArray(config.folders)) {
+    if (
+      !config ||
+      !config.folders ||
+      !Array.isArray(config.folders) ||
+      !config.output
+    ) {
       console.error(
-        "❌ Invalid configuration file format. Expected { folders: [...] }"
+        "❌ Invalid configuration file format. Expected { folders: [...], output: '...' }"
       );
       process.exit(1);
     }
 
     const folders = config.folders;
+    const outputFile = config.output; // Get the output path from config
 
     try {
-      await fsPromises.access(
-        path.dirname(hardcodedOutputFile),
-        fs.constants.W_OK
-      );
+      await fsPromises.access(path.dirname(outputFile), fs.constants.W_OK);
     } catch (accessError) {
       console.error(
-        `❌ Output directory is not writable: ${path.dirname(
-          hardcodedOutputFile
-        )}`,
+        `❌ Output directory is not writable: ${path.dirname(outputFile)}`,
         accessError
       );
       process.exit(1);
@@ -117,20 +115,14 @@ const main = async () => {
 
     console.log(`🔄 Processing ${folders.length} folders...`);
     for (const folderPath of folders) {
-      const folderContent = await processFolder(
-        folderPath,
-        ig,
-        hardcodedOutputFile
-      );
+      const folderContent = await processFolder(folderPath, ig);
       if (folderContent) {
         overallContent += folderContent;
       }
     }
 
-    await fsPromises.writeFile(hardcodedOutputFile, overallContent);
-    console.log(
-      `✅ Merged content from all folders into ${hardcodedOutputFile}`
-    );
+    await fsPromises.writeFile(outputFile, overallContent);
+    console.log(`✅ Merged content from all folders into ${outputFile}`);
   } catch (err) {
     console.error("❌ Error reading or processing:", err);
     process.exit(1);
