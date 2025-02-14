@@ -16,7 +16,6 @@ const processFolder = async (folderPath, ig, considerGitignore) => {
   const gitignoreFile = path.join(folderPath, ".gitignore");
 
   if (considerGitignore) {
-    // Conditionally read .gitignore
     try {
       if (fs.existsSync(gitignoreFile)) {
         const gitignoreContent = await fsPromises.readFile(
@@ -39,28 +38,46 @@ const processFolder = async (folderPath, ig, considerGitignore) => {
 
     for (const file of files) {
       const filePath = path.join(folderPath, file);
+      const relativePath = path.relative(folderPath, filePath); // Get relative path
 
-      if (config.ignoreFiles.includes(file)) {
-        // Check ignoreFiles
-        console.log(`🚫 Skipping file (ignoreFiles): ${file}`);
-        continue;
-      }
+      const isDirectory = fs.statSync(filePath).isDirectory();
 
-      const ext = path.extname(file).toLowerCase();
-
-      if (ig.ignores(file) || config.ignoreExtensions.includes(ext)) {
-        console.log(`🚫 Skipping: ${file}`);
-        continue;
-      }
-
-      try {
-        const stats = await fsPromises.stat(filePath);
-        if (stats.isFile()) {
-          const content = await fsPromises.readFile(filePath, "utf8");
-          combinedContent += `\n--- ${filePath} ---\n${content}\n`;
+      if (
+        isDirectory &&
+        !ig.ignores(relativePath) &&
+        !config.ignoreFiles.includes(file)
+      ) {
+        //Use relative path
+        // Recursively process subdirectories
+        const subfolderContent = await processFolder(
+          filePath,
+          ig,
+          considerGitignore
+        );
+        combinedContent += subfolderContent; // Add content from subfolder
+      } else {
+        if (config.ignoreFiles.includes(file)) {
+          console.log(`🚫 Skipping file (ignoreFiles): ${file}`);
+          continue;
         }
-      } catch (err) {
-        console.error(`❌ Error processing file ${filePath}:`, err);
+
+        const ext = path.extname(file).toLowerCase();
+
+        if (ig.ignores(relativePath) || config.ignoreExtensions.includes(ext)) {
+          //Use relative path
+          console.log(`🚫 Skipping: ${file}`);
+          continue;
+        }
+
+        try {
+          const stats = await fsPromises.stat(filePath);
+          if (stats.isFile()) {
+            const content = await fsPromises.readFile(filePath, "utf8");
+            combinedContent += `\n--- ${filePath} ---\n${content}\n`;
+          }
+        } catch (err) {
+          console.error(`❌ Error processing file ${filePath}:`, err);
+        }
       }
     }
   } catch (err) {
@@ -82,7 +99,7 @@ const main = async () => {
       !Array.isArray(config.ignoreExtensions) ||
       !config.ignoreFiles ||
       !Array.isArray(config.ignoreFiles) ||
-      typeof config.considerGitignore !== "boolean" // Check considerGitignore
+      typeof config.considerGitignore !== "boolean"
     ) {
       console.error(
         "❌ Invalid configuration file format. Expected { folders: [...], output: '...', ignoreExtensions: [...], ignoreFiles: [...], considerGitignore: boolean }"
@@ -92,7 +109,7 @@ const main = async () => {
 
     const folders = config.folders;
     const outputFile = config.output;
-    const considerGitignore = config.considerGitignore; // Get the considerGitignore value
+    const considerGitignore = config.considerGitignore;
 
     try {
       await fsPromises.access(path.dirname(outputFile), fs.constants.W_OK);
@@ -118,7 +135,7 @@ const main = async () => {
         folderPath,
         ig,
         considerGitignore
-      ); //Pass value
+      );
       if (folderContent) {
         overallContent += folderContent;
       }

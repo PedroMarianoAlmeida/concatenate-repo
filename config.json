@@ -1,6 +1,6 @@
 {
   "folders": ["/Users/pedroalmeida/Documents/Projects/StickerSmash"],
-  "output": "/Users/pedroalmeida/Documents/Projects/concatenate-repo/output.txt",
+  "output": "/Users/pedroalmeida/Documents/Projects/concatenate-repo/output5.txt",
   "ignoreExtensions": [
     ".png",
     ".jpg",
@@ -25,5 +25,5 @@
     ".log"
   ],
   "ignoreFiles": ["package-lock.json"],
-  "considerGitignore": true
+  "considerGitignore": false
 }
