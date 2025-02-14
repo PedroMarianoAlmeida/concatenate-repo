@@ -1,7 +1,10 @@
-const fsPromises = require("fs").promises; // Use promises for async/await
-const fs = require("fs"); // Import the synchronous fs module
+const fsPromises = require("fs").promises;
+const fs = require("fs");
 const path = require("path");
 const ignore = require("ignore");
+
+// Import config.json directly
+const config = require("./config.json"); // Adjust path if needed
 
 const mediaExtensions = new Set([
   ".png",
@@ -25,37 +28,30 @@ const mediaExtensions = new Set([
   ".gz",
 ]);
 
-const processFolder = async (folderPath) => {
-  // Make this an async function
+const processFolder = async (folderPath, ig, outputFile) => {
   if (!fs.existsSync(folderPath) || !fs.statSync(folderPath).isDirectory()) {
     console.warn(`⚠️ Skipping invalid folder: ${folderPath}`);
-    return;
+    return "";
   }
 
   console.log(`📂 Processing: ${folderPath}`);
   const gitignoreFile = path.join(folderPath, ".gitignore");
-  const outputFile = path.join(folderPath, "output.txt");
-
-  let ig = ignore();
-  ig.add("package-lock.json");
 
   try {
     if (fs.existsSync(gitignoreFile)) {
-      const gitignoreContent = await fsPromises.readFile(gitignoreFile, "utf8"); // Use await
-      ig = ignore().add(gitignoreContent);
+      const gitignoreContent = await fsPromises.readFile(gitignoreFile, "utf8");
+      ig.add(gitignoreContent);
     }
   } catch (err) {
     console.error(`❌ Error reading .gitignore in ${folderPath}:`, err);
-    return; // Stop processing this folder on error
+    return "";
   }
 
+  let combinedContent = "";
   try {
-    const files = await fsPromises.readdir(folderPath); // Use await
-    let combinedContent = "";
-    let fileCount = 0;
+    const files = await fsPromises.readdir(folderPath);
 
     for (const file of files) {
-      // Use a for...of loop for async
       const filePath = path.join(folderPath, file);
       const ext = path.extname(file).toLowerCase();
 
@@ -65,51 +61,83 @@ const processFolder = async (folderPath) => {
       }
 
       try {
-        const stats = await fsPromises.stat(filePath); // Use await
-
+        const stats = await fsPromises.stat(filePath);
         if (stats.isFile()) {
-          const content = await fsPromises.readFile(filePath, "utf8"); // Use await
-          combinedContent += `\n--- ${file} ---\n${content}\n`;
-          fileCount++;
+          const content = await fsPromises.readFile(filePath, "utf8");
+          combinedContent += `\n--- ${filePath} ---\n${content}\n`;
         }
       } catch (err) {
         console.error(`❌ Error processing file ${filePath}:`, err);
       }
     }
-
-    if (fileCount > 0) {
-      await fsPromises.writeFile(outputFile, combinedContent); // Use await
-      console.log(`✅ Merged ${fileCount} files into ${outputFile}`);
-    } else {
-      console.log(`⚠️ No valid files found in ${folderPath}`);
-    }
   } catch (err) {
     console.error(`❌ Error reading directory ${folderPath}:`, err);
+    return "";
   }
+
+  return combinedContent;
 };
 
 const main = async () => {
-  // Wrap the main logic in an async function
-  const folders = [
-    "/Users/pedroalmeida/Documents/Projects/StickerSmash", // Replace with your actual paths
-    // Add more folder paths here as needed
-  ];
+  const hardcodedOutputFile =
+    "/Users/pedroalmeida/Documents/Projects/concatenate-repo/output.txt";
 
-  if (folders.length === 0) {
-    console.log("⚠️ No folders to process.");
+  try {
+    if (!config || !config.folders || !Array.isArray(config.folders)) {
+      console.error(
+        "❌ Invalid configuration file format. Expected { folders: [...] }"
+      );
+      process.exit(1);
+    }
+
+    const folders = config.folders;
+
+    try {
+      await fsPromises.access(
+        path.dirname(hardcodedOutputFile),
+        fs.constants.W_OK
+      );
+    } catch (accessError) {
+      console.error(
+        `❌ Output directory is not writable: ${path.dirname(
+          hardcodedOutputFile
+        )}`,
+        accessError
+      );
+      process.exit(1);
+    }
+
+    if (folders.length === 0) {
+      console.log("⚠️ No folders to process.");
+      process.exit(1);
+    }
+
+    let overallContent = "";
+    const ig = ignore();
+
+    console.log(`🔄 Processing ${folders.length} folders...`);
+    for (const folderPath of folders) {
+      const folderContent = await processFolder(
+        folderPath,
+        ig,
+        hardcodedOutputFile
+      );
+      if (folderContent) {
+        overallContent += folderContent;
+      }
+    }
+
+    await fsPromises.writeFile(hardcodedOutputFile, overallContent);
+    console.log(
+      `✅ Merged content from all folders into ${hardcodedOutputFile}`
+    );
+  } catch (err) {
+    console.error("❌ Error reading or processing:", err);
     process.exit(1);
   }
-
-  console.log(`🔄 Processing ${folders.length} folders...`);
-  for (const folder of folders) {
-    // Use a for...of loop for async
-    await processFolder(folder);
-  }
-  console.log("✅ Done!"); // Add a completion message
 };
 
 main().catch((err) => {
-  // Catch any top-level errors
   console.error("❌ An error occurred:", err);
   process.exit(1);
 });
